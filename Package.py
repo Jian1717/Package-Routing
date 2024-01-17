@@ -1,5 +1,5 @@
 from datetime import datetime 
-class PackageDetail:
+class Package:
     def __init__(self,id:int, address:str, deadline:datetime, city:str, zip_code:int,weight:int,notes:str,status:str):
         self.id=id
         self.address =address

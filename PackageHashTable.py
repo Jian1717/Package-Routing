@@ -3,7 +3,7 @@
 # Ref: zyBooks: Figure 7.8.2: Hash table using chaining.
  
 # HashTable class using chaining.
-from PackageDetail import PackageDetail
+from Package import Package
 
 class PackageHashTable:
     # Constructor with optional initial capacity parameter.
@@ -17,7 +17,7 @@ class PackageHashTable:
             self.table.append([])
       
     # Inserts a new item into the hash table.
-    def insert(self, package_id:int, package_detail:PackageDetail): #  does both insert and update 
+    def insert(self, package_id:int, package:Package): #  does both insert and update 
         # get the bucket list where this item will go.
         bucket = hash(package_id) % len(self.table)
         bucket_list = self.table[bucket]
@@ -25,11 +25,11 @@ class PackageHashTable:
         # update package_id if it is already in the bucket
         for kv in bucket_list:
           if kv[0] == package_id:
-            kv[1] = package_detail
+            kv[1] = package
             return True
     
         # if not, insert the item to the end of the bucket list.
-        key_value = [package_id, package_detail]
+        key_value = [package_id, package]
         bucket_list.append(key_value)
         return True
  

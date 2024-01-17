@@ -3,7 +3,7 @@
 import csv
 from datetime import *
 from PackageHashTable import PackageHashTable
-from PackageDetail import PackageDetail
+from Package import Package
 from DistanceTable import DistanceTable
 
 #loading data from CSV file and fill out distance table and addess dictionary 
@@ -61,7 +61,7 @@ def load_package_file():
         special_notes_list=[]
         #insert each package into package hashing table
         for row in reader:
-            package_hashing_table.insert(row[0],PackageDetail(row[0],validate_address(row[1]),validate_time(row[5]),row[2],row[4],row[6],row[7],'in hub'))
+            package_hashing_table.insert(row[0],Package(row[0],validate_address(row[1]),validate_time(row[5]),row[2],row[4],row[6],row[7],'in hub'))
             #adding package to special_notes_list if it contain special notes
             if(row[7] is not None):
                 special_notes_list.append(row[0])
