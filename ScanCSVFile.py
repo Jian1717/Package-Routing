@@ -62,7 +62,7 @@ def load_package_file():
         #insert each package into package hashing table
         for row in reader:
             package_hashing_table.insert(row[0],Package(row[0],validate_address(row[1]),validate_time(row[5]),row[2],row[4],row[6],row[7],'in hub'))
-            #adding package to special_notes_list if it contain special notes
+            #adding package id to special_notes_list if it contain special notes
             if(row[7] is not None):
                 special_notes_list.append(row[0])
         package_hashing_table.set_special_notes_list(special_notes_list)
@@ -79,6 +79,12 @@ def validate_address (address:str):
         address=address.replace('SOUTH','S')    
     if address.find('NORTH')>-1:
         address=address.replace('NORTH','N')
+    #remove , from address
+    if address.find(',')>-1:
+        address=address.replace(',','')
+    #remove leading space in address
+    if address.startswith(' '):
+        address=address[1:]
     return address
 
 #transfer datetime in string format to datetime format. If deadline is EOD set time to 11.59 pm

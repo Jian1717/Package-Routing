@@ -43,7 +43,7 @@ class PackageHashTable:
         # search for the package_id in the bucket list
         for kv in bucket_list:
           if kv[0] == package_id:
-            return kv[1] # value
+            return kv[1] # target package
         return None
  
     # Removes an item with matching key from the hash table.
