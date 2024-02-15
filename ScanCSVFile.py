@@ -34,7 +34,10 @@ def load_distance_table():
             index=2
             while row[index] is not None and index < len(row)-1:
                 #adding the distance to list
-                distance_table[row_count].append(row[index])
+                try:
+                    distance_table[row_count].append(float(row[index]))
+                except ValueError:
+                    distance_table[row_count].append(-1.0)
                 #increament index by 1
                 index += 1
             #adding modify address to dictionary and its corresponding row postion index in the distance table
@@ -79,6 +82,8 @@ def validate_address (address:str):
         address=address.replace('SOUTH','S')    
     if address.find('NORTH')>-1:
         address=address.replace('NORTH','N')
+    if address.find('STATION')>-1:
+        address=address.replace('STATION','STA')
     #remove , from address
     if address.find(',')>-1:
         address=address.replace(',','')

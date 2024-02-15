@@ -1,6 +1,6 @@
 #create class to hold distance table and address look up list
 class DistanceTable:
-    def __init__(self,distance_table:list[list[int]],address_dicitonary:dict[str,int]):
+    def __init__(self,distance_table:list[list[float]],address_dicitonary:dict[str,int]):
         self.distance_table=distance_table
         self.address_dicitonary=address_dicitonary
 
