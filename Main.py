@@ -13,7 +13,7 @@ def main():
     distance_table = load_distance_table()
     route_calculator= RouteCalculator(distance_table,package_hashtable,[Truck(1,'driver 1'),Truck(2,'driver 2')])
     print(distance_table.address_dicitonary)
+    print(distance_table.distance_table)
     task_list=route_calculator.calculate_routes()
-    print(task_list)
 if __name__ == '__main__':
     main()

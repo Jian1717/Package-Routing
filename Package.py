@@ -76,6 +76,6 @@ class Package:
         self.status = value
     
     def print_package_detail(self):
-        print('Package ID: '+self.id+' Delivery Address: '+self.address+' Status : '+self.status+' notes: '+self.notes)
+        print('Package ID: '+self.id+' Delivery Address: '+self.address+' Status : '+self.status)
     
         

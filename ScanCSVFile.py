@@ -9,7 +9,7 @@ from DistanceTable import DistanceTable
 #loading data from CSV file and fill out distance table and addess dictionary 
 def load_distance_table():
     #creating 2D array
-    distance_table =[[]]
+    distance_table =[]
     address_dicitonary = {}
     
     with open('WGUPS Distance Table.csv','r') as distance_table_csv:
@@ -28,16 +28,18 @@ def load_distance_table():
         next(reader)
         row_count=0
         for row in reader:
-            #adding new list for current address entry
-            distance_table.append([])
+            #adding a dictionary data struction into list.  For quikcer data value search in later use in the program
+            distance_table.append(dict())
             #starting index for distance in the row
             index=2
-            while row[index] is not None and index < len(row)-1:
+            while index < len(row)-1:
                 #adding the distance to list
-                try:
-                    distance_table[row_count].append(float(row[index]))
-                except ValueError:
-                    distance_table[row_count].append(-1.0)
+                if row[index] is not '':
+                    try:
+                        #creating dictionary key=postion index in the distance table, value = distance in between
+                        distance_table[row_count][index-2]=row[index]
+                    except ValueError:
+                        pass
                 #increament index by 1
                 index += 1
             #adding modify address to dictionary and its corresponding row postion index in the distance table
