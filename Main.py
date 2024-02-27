@@ -6,14 +6,15 @@ from Console import *
 from Truck import *
 
 
-
-#program strat from here
+# program strat from here
 def main():
     package_hashtable = load_package_file()
     distance_table = load_distance_table()
-    route_calculator= RouteCalculator(distance_table,package_hashtable,[Truck(1,'driver 1'),Truck(2,'driver 2')])
-    print(distance_table.address_dicitonary)
-    print(distance_table.distance_table)
-    task_list=route_calculator.calculate_routes()
+    route_calculator = RouteCalculator(distance_table, package_hashtable, [Truck(1, 'driver 1'), Truck(2, 'driver 2')])
+    task_list = route_calculator.calculate_routes()
+    print('program ends')
+    print(task_list)
+
+
 if __name__ == '__main__':
     main()
