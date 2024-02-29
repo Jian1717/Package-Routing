@@ -2,7 +2,7 @@ from PackageHashTable import *
 from Truck import *
 from DistanceTable import *
 from datetime import *
-
+from Stop import *
 
 class RouteCalculator:
     def __init__(self, distance_table: DistanceTable, package_hashtable: PackageHashTable, truck_list):
@@ -15,6 +15,7 @@ class RouteCalculator:
         self.all_possible_routes = []
         self.bonded_package_dictionary = dict()
         self.rush_package_list = set()
+        self.early_deadline=datetime.strptime(str(date.today()) + ' ' + '10:30 AM', '%Y-%m-%d %I:%M %p')
 
     # update the package on package_hashtable base on their special notes
     def check_special_notes(self):
@@ -48,17 +49,18 @@ class RouteCalculator:
         anytime_package_list = list()
         start_time = datetime.strptime(str(date.today()) + ' ' + '08:00 AM', '%Y-%m-%d %I:%M %p')
         self.check_special_notes()
+        #load packages in package hastable into a list
         for bucket in self.package_hashtable.table:
             for package in bucket:
                 anytime_package_list.append(package[1].get_id())
-        # finding all delivery routes for
-        self.find_routes(anytime_package_list, [0], 1, start_time, start_time)
+        # finding all delivery routes 
+        self.find_routes(anytime_package_list,[Stop(None,0)], 1, start_time, start_time)
         # planning the best route for rush package
 
         return self.all_possible_routes
 
     # find a 15 package route for truck
-    def find_routes(self, package_list: list[int], current_route: list[int], route_count: int, current_time_truck_1,
+    def find_routes(self, package_list: list[int], current_route, route_count: int, current_time_truck_1,
                     current_time_truck_2):
         route_count = route_count
         if route_count % 2 == 0:
@@ -69,10 +71,10 @@ class RouteCalculator:
         # exit condition for recursion function -- all the package is assigned to a route
         if len(package_list) == 0:
             # add returning to hub when all packages are assigned
-            current_route.append(0)
+            hub_stop=Stop(None,0)
+            hub_stop.travel_time=timedelta(hours=self.get_distance_between(current_route[-1].address_index,0)/18)
+            current_route.append(hub_stop)
             # adding the time for returning back to hub
-            current_time = current_time + timedelta(hours=self.get_distance_between(current_route[-1], 0) / 18)
-            print(current_route)
             self.all_possible_routes.append(current_route)
             return
 
@@ -82,65 +84,52 @@ class RouteCalculator:
                 if package_id in self.truck2_package_list and route_count % 2 == 1:
                     continue
                 next_package = self.package_hashtable.lookup(package_id)
-                if next_package is not None:
-                    next_package_destination_address_id = self.distance_dictionary[next_package.get_address()]
-                    # if truck is in the hub assign 0 to address_id
-                    if current_route[-1] == 0:
-                        current_truck_address_id = 0
-                    # look up address_id for current package
-                    else:
-                        current_truck_address_id = self.distance_dictionary[
-                            self.package_hashtable.lookup(current_route[-1]).get_address()]
-                    distance = self.get_distance_between(current_truck_address_id, next_package_destination_address_id)
-                    time_to_next_delivery = timedelta(hours=distance / 18)
-                    if distance > 0:
-                        future_time = time_to_next_delivery + current_time
-                        if future_time <= next_package.get_deadline():
-                            current_route.append(package_id)
-                            package_list.remove(package_id)
-                            # check if current is fully loaded and return truck to hub for next route delivery
-                            if len(current_route) % 16 == 0:
-                                # adding the time for returning back to hub
-                                time_return_hub = timedelta(
-                                    hours=self.get_distance_between(current_truck_address_id, 0) / 18)
-                                future_time = future_time + time_return_hub
-                                current_route.append(0)
-                                route_count += 1
-
-                            if route_count % 2 == 0:
-                                self.find_routes(package_list, current_route, route_count, current_time_truck_1,
-                                                 future_time)
-                            # updating time for truck 1
-                            else:
-                                self.find_routes(package_list, current_route, route_count, future_time,
-                                                 current_time_truck_2)
-                            available_package = package_list.copy()
+                if next_package.available_time <= current_time:
+                    current_stop=current_route[-1]
+                    next_stop=Stop(package_id,self.distance_dictionary[next_package.get_address()])
+                    next_stop.travel_time=timedelta(hours=self.get_distance_between(next_stop.address_index,current_stop.address_index)/18)
+                    future_time=current_time+next_stop.travel_time
+                    if future_time <= next_package.get_deadline():
+                        current_route.append(next_stop)
+                        package_list.remove(package_id)
+                        #check if 15 package is assigend a route
+                        if len(current_route) % 16 == 0:
+                            # adding the time for returning back to hub
+                            hub_stop=Stop(None,0)
+                            hub_stop.travel_time=timedelta(hours=self.get_distance_between(next_stop.address_index,0)/18)
+                            current_route.append(hub_stop)
+                            future_time=future_time+hub_stop.travel_time
+                            #increment route_coute for next Truck's route assigment
+                            route_count += 1
+                        #recursion call for Truck 2 route assigment   
+                        if route_count % 2 == 0:
+                            self.find_routes(package_list, current_route, route_count, current_time_truck_1,
+                                                future_time)
+                        #recursion call for Truck 1 route assigment
                         else:
-                            # delivery time is less than deadline take out package in current to make sure it delivered
-                            current_deadline = next_package.get_deadline()
-                            while True:
-                                if future_time < current_deadline:
-                                    package_list.append(current_route[-1])
-                                    previous_package_delivery_time = timedelta(
-                                        hours=self.get_distance_between(current_route[-2], current_route[-1]) / 18)
-                                    current_route.pop()
-                                    future_time = current_time - previous_package_delivery_time
-                                else:
-                                    current_route.append(package_id)
-                                    package_list.remove(package_id)
-                                    break
-                            return
+                            self.find_routes(package_list, current_route, route_count, future_time,
+                                                current_time_truck_2)
+                        if current_route[-1].address_index ==0:
+                            current_route.pop()
+                        package_list.append(next_stop.package_id)
+                        current_route.pop()
                     else:
-                        return
-        return
+                        break
+                else:
+                    continue    
+
+                        
+                
 
         # find the distance between two address
 
-    def get_distance_between(self, current_truck_address_id, next_destination_address_id):
-        if current_truck_address_id < next_destination_address_id:
+    def get_distance_between(self, current_truck_address_id,next_destination_address_id):
+        try:
             value = self.distance_table[next_destination_address_id][current_truck_address_id]
-        else:
+        except:
             value = self.distance_table[current_truck_address_id][next_destination_address_id]
-        if value is not None:
-            return float(value)
-        return -1
+        
+        return float(value)
+
+    def check_rush_package(self,current_route,current_time_truck_1,current_time_truck_2):
+        return

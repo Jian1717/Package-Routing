@@ -32,9 +32,9 @@ def load_distance_table():
             distance_table.append(dict())
             #starting index for distance in the row
             index=2
-            while index < len(row)-1:
+            while index < len(row):
                 #adding the distance to list
-                if row[index] is not '':
+                if row[index] != '':
                     try:
                         #creating dictionary key=postion index in the distance table, value = distance in between
                         distance_table[row_count][index-2]=row[index]
