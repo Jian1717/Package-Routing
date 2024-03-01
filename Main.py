@@ -5,7 +5,8 @@ from DistanceTable import *
 from Console import *
 from Truck import *
 
-# program strat from here
+
+# program start from here
 def main():
     package_hashtable = load_package_file()
     distance_table = load_distance_table()
