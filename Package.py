@@ -10,6 +10,7 @@ class Package:
         self.deadline = deadline
         self.start_delivery_time = None
         self.available_time = (datetime.strptime(str(date.today()) + ' ' + '08:00 AM', '%Y-%m-%d %I:%M %p'))
+        self.load_time = None
         self.city = city
         self.zip_code = zip_code
         self.weight = weight
