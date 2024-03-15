@@ -3,6 +3,7 @@ from Truck import *
 from DistanceTable import *
 from datetime import *
 from Stop import *
+from Route import *
 
 
 class RouteCalculator:
@@ -71,18 +72,16 @@ class RouteCalculator:
                 # putting same address packages together
                 if self.address_package_dictionary.get(self.distance_dictionary[package[1].address]) is None:
                     # creating new list entry if there is no existing address
-                    self.address_package_dictionary[self.distance_dictionary[package[1].address]] = []
-                    self.address_package_dictionary[self.distance_dictionary[package[1].address]].append(
+                    self.address_package_dictionary[self.distance_dictionary[package[1].address]] = set()
+                    self.address_package_dictionary[self.distance_dictionary[package[1].address]].add(
                         package[1].get_id())
                 else:
-                    self.address_package_dictionary.get(self.distance_dictionary[package[1].address]).append(
+                    self.address_package_dictionary.get(self.distance_dictionary[package[1].address]).add(
                         package[1].get_id())
-        # finding all delivery routes 
-        current_route = self.find_routes(anytime_package_list, [Stop(None, 0)], 1, start_time, start_time)
+        # finding all delivery routes
+        current_route = self.find_routes(anytime_package_list, Route([Stop(None, 0)]), 1, start_time, start_time)
         # planning the best route for rush package
-        print(current_route)
-
-        return self.all_possible_routes
+        return
 
     # find a 15 package route for truck
     def find_routes(self, package_list, current_route, route_count: int, current_time_truck_1,
@@ -91,38 +90,42 @@ class RouteCalculator:
         # find the shortest route for 40 package without check any conditions
         while len(package_list) > 0:
             self.get_shortest_next_stop(current_route, package_list)
+        # adding hub stop when all packages are assigned
+        self.adding_hub_stop(current_route)
+        is_validated = False
 
         return current_route
 
     # find the distance between two address
+    def check_rush_package(self, current_route):
 
-
-    def check_rush_package(self, current_route, current_time_truck_1, current_time_truck_2):
-        if current_time_truck_1 >= self.early_deadline and current_time_truck_2 >= self.early_deadline:
+        is_found = False
+        for package_id in self.rush_package_list:
+            for stop in current_route.route:
+                if stop.package_id == package_id:
+                    is_found = True
+            if not is_found:
+                return False
             is_found = False
-            for package_id in self.rush_package_list:
-                for stop in current_route:
-                    if stop.package_id == package_id:
-                        is_found = True
-                if not is_found:
-                    return False
-                is_found = False
         return True
 
     def adding_hub_stop(self, current_route):
-        current_stop = current_route[-1]
+        current_stop = current_route.route[-1]
         next_stop = Stop(None, 0)
         next_stop.travel_time = timedelta(
             hours=self.get_distance_between(next_stop.address_index, current_stop.address_index) / 18)
-        current_route.append(next_stop)
+        current_route.route.append(next_stop)
+        current_route.last_hub_index.append(len(current_route.route))
 
     def get_shortest_next_stop(self, current_route, package_list):
-        if len(current_route) % 17 == 0:
+        # check if there is 16 packages assigned to the route and adding hub stop
+        if len(current_route.route) - current_route.last_hub_index[-1] == 16:
             self.adding_hub_stop(current_route)
         else:
-            current_stop = current_route[-1]
+            current_stop = current_route.route[-1]
             current_address_index = current_stop.address_index
             current_address_distance_detail = self.min_distance_table[current_address_index]
+            is_add = False
             for item in current_address_distance_detail:
                 address_index = item[0]
                 distance = item[1]
@@ -131,18 +134,26 @@ class RouteCalculator:
                     continue
                 num_same_address_package = len(self.address_package_dictionary[address_index])
                 # check the address_package_dictionary to see if there is any package with that address
-                if num_same_address_package > 0 and (num_same_address_package + len(current_route)) % 17 != 0:
-                    is_add = False
-                    for package_id in self.address_package_dictionary[address_index]:
-                        if package_id in package_list:
+                # and find the packages are available in package_list
+                available_packages = self.address_package_dictionary[address_index].intersection(package_list)
+                if len(available_packages) > 0:
+                    # check if there is enough to add all package to current route.
+                    if len(available_packages) - current_route.last_hub_index[-1] + len(
+                            current_route.route) < 17 and len(
+                        available_packages) < 17:
+                        # adding all same address package to current route
+                        for package_id in available_packages:
                             next_stop = Stop(package_id, address_index)
                             next_stop.travel_time = timedelta(
                                 hours=distance / 18)
-                            current_route.append(next_stop)
+                            current_route.route.append(next_stop)
                             package_list.remove(package_id)
                             is_add = True
-                    if is_add:
-                        break
+                        if is_add:
+                            break
+            # adding hub stop to route in case remaining spot for package is not enough for all available packages
+            if not is_add:
+                self.adding_hub_stop(current_route)
 
     def get_distance_between(self, current_address_id, next_address_id):
 
