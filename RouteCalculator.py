@@ -14,11 +14,9 @@ class RouteCalculator:
         self.package_hashtable = package_hashtable
         self.truck_list = truck_list
         self.truck2_package_list = set()
-        self.task_list = [[0], [0]]
-        self.all_possible_routes = []
         self.bonded_package_dictionary = dict()
         self.address_package_dictionary = dict()
-        self.package_failed_index = dict()
+        self.failed_package_dictionary = dict()
         self.bonded_package_list = set()
         self.rush_package_list = set()
         self.delay_package_list = set()
@@ -46,11 +44,20 @@ class RouteCalculator:
                 current_package.set_address('410 S STATE ST')
                 self.package_hashtable.insert(current_package.get_id(), current_package)
             elif 'Must be delivered with' in note:
-                note.replace(',', ' ')
+                note = note.replace(',', ' ')
                 string_list = note.split()
-                self.bonded_package_dictionary[current_package.get_id()] = []
-                self.bonded_package_dictionary[current_package.get_id()].append(string_list[4])
-                self.bonded_package_dictionary[current_package.get_id()].append(string_list[5])
+                if current_package.get_id() not in self.bonded_package_dictionary:
+                    self.bonded_package_dictionary[current_package.get_id()] = set()
+                self.bonded_package_dictionary[current_package.get_id()].add(string_list[4])
+                self.bonded_package_dictionary[current_package.get_id()].add(string_list[5])
+                for package_id in self.bonded_package_dictionary[current_package.get_id()]:
+                    if package_id not in self.bonded_package_dictionary:
+                        self.bonded_package_dictionary[package_id] = set()
+                    self.bonded_package_dictionary[package_id].add(current_package.get_id())
+                    if package_id == string_list[4]:
+                        self.bonded_package_dictionary[package_id].add(string_list[5])
+                    else:
+                        self.bonded_package_dictionary[package_id].add(string_list[4])
                 # adding all three packages into set
                 self.bonded_package_list.add(current_package.get_id())
                 self.bonded_package_list.add(string_list[4])
@@ -79,35 +86,79 @@ class RouteCalculator:
                     self.address_package_dictionary.get(self.distance_dictionary[package[1].address]).add(
                         package[1].get_id())
         # finding all delivery routes
-        current_route = self.find_routes(anytime_package_list, Route([Stop(None, 0)]), 1, start_time, start_time)
+        self.find_routes(anytime_package_list, Route([Stop(None, 0)]))
         # planning the best route for rush package
+
         return
 
     # find a 15 package route for truck
-    def find_routes(self, package_list, current_route, route_count: int, current_time_truck_1,
-                    current_time_truck_2):
+    def find_routes(self, package_list, current_route):
 
         # find the shortest route for 40 package without check any conditions
         while len(package_list) > 0:
             self.get_shortest_next_stop(current_route, package_list)
         # adding hub stop when all packages are assigned
         self.adding_hub_stop(current_route)
-        is_validated = False
-
+        self.validating_routes(current_route)
+        print(self.failed_package_dictionary)
         return current_route
 
-    # find the distance between two address
-    def check_rush_package(self, current_route):
+    # calculate loading time for each route
+    def validating_routes(self, current_route):
+        travel_time_truck_1 = datetime.strptime(str(date.today()) + ' ' + '08:00 AM', '%Y-%m-%d %I:%M %p')
+        travel_time_truck_2 = datetime.strptime(str(date.today()) + ' ' + '08:00 AM', '%Y-%m-%d %I:%M %p')
+        count = 1
+        for route in current_route.get_route_breakdown():
+            available_package_list = set()
+            # adding all package into set
+            for stop in route:
+                if stop.address_index == 0:
+                    continue
+                available_package_list.add(stop.package_id)
+            if count % 2 == 1:
+                start_time = travel_time_truck_1
+            else:
+                start_time = travel_time_truck_2
+            current_time = start_time
+            loading_time = start_time
+            previous_address_index = 0
+            for stop in route:
+                # not to loop up package if current stop is hub
+                if stop.address_index != 0:
+                    current_package = self.package_hashtable.lookup(stop.package_id)
+                    # don't update current time if package is in the same address
+                    if stop.address_index != previous_address_index:
+                        current_time = current_time + stop.travel_time
+                else:
+                    current_time = current_time + stop.travel_time
+                    continue
+                # check loading time for package:
+                if current_package.load_time is not None and loading_time < current_package.available_time:
+                    self.add_failed_package(stop.package_id, 'package can\'t be loaded')
+                # check rush package
+                if current_package.deadline < current_time:
+                    self.add_failed_package(stop.package_id, 'failed delivery by deadline')
+                # check bonding delivery packages
+                if current_package.id in self.bonded_package_list:
+                    if not self.bonded_package_dictionary[current_package.id].issubset(available_package_list):
+                        self.add_failed_package(stop.package_id,
+                                                'failed delivery by bonding package')
+                # check truck 2 only packages
+                if current_package.id in self.truck2_package_list:
+                    if count % 2 == 1:
+                        self.add_failed_package(stop.package_id,
+                                                'failed delivery by truck 2')
+                previous_address_index = stop.address_index
+            if count % 2 == 1:
+                travel_time_truck_1 = current_time
+            else:
+                travel_time_truck_2 = current_time
+            count += 1
 
-        is_found = False
-        for package_id in self.rush_package_list:
-            for stop in current_route.route:
-                if stop.package_id == package_id:
-                    is_found = True
-            if not is_found:
-                return False
-            is_found = False
-        return True
+    def add_failed_package(self, package_id, reason):
+        if package_id not in self.failed_package_dictionary:
+            self.failed_package_dictionary[package_id] = []
+        self.failed_package_dictionary[package_id].append(reason)
 
     def adding_hub_stop(self, current_route):
         current_stop = current_route.route[-1]

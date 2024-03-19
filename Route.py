@@ -11,6 +11,6 @@ class Route:
             if hub_index == 1:
                 continue
             else:
-                breakdown_list.append(self.route[previous_index:hub_index])
+                breakdown_list.append(self.route[previous_index-1:hub_index])
                 previous_index = hub_index
         return breakdown_list
