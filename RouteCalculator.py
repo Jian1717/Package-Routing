@@ -87,9 +87,6 @@ class RouteCalculator:
                         package[1].get_id())
         # finding all delivery routes
         self.find_routes(anytime_package_list, Route([Stop(None, 0)]))
-        # planning the best route for rush package
-
-        return
 
     # find a 15 package route for truck
     def find_routes(self, package_list, current_route):
@@ -100,7 +97,9 @@ class RouteCalculator:
         # adding hub stop when all packages are assigned
         self.adding_hub_stop(current_route)
         self.validating_routes(current_route)
-        print(self.failed_package_dictionary)
+        while len(self.failed_package_dictionary) > 0:
+            self.fix_fail_stop(current_route)
+            self.validating_routes(current_route)
         return current_route
 
     # calculate loading time for each route
@@ -214,3 +213,41 @@ class RouteCalculator:
             value = self.distance_table[current_address_id][next_address_id]
 
         return float(value)
+
+    def fix_fail_stop(self, current_route):
+        available_package = set()
+        truck_1_route_list = []
+        truck_2_route_list = []
+        count = 1
+        for route in current_route.get_route_breakdown():
+            if count % 2 == 1:
+                truck_1_route_list.append(route)
+            else:
+                truck_2_route_list.append(route)
+
+        sorted_fail_package = self.get_sorted_fail_package()
+        # removing wrong assigning packages from truck 1 route
+        for package_id in sorted_fail_package['failed delivery by truck 2']:
+            for route in truck_1_route_list:
+                for stop
+                if stop.package_id is None:
+                    continue
+                else:
+                    if stop.package_id == package_id
+                        route.remove(package_id)
+                        available_package.add(package_id)
+                    break
+        for route in truck_2_route_list:
+            for package_id in route
+
+
+    # group failed package by its fail reason
+    def get_sorted_fail_package(self):
+        sorted_fail_package = dict()
+        for key, value in self.failed_package_dictionary.items():
+            for reason in value:
+                if reason not in sorted_fail_package:
+                    sorted_fail_package[reason] = set()
+                else:
+                    sorted_fail_package[reason].add(key)
+        return sorted_fail_package
