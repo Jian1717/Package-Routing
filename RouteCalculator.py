@@ -97,31 +97,54 @@ class RouteCalculator:
         # adding hub stop when all packages are assigned
         self.adding_hub_stop(current_route)
         self.validating_routes(current_route)
+
+        print('I am here')
+        self.fix_fail_stop(current_route)
+        '''''
         while len(self.failed_package_dictionary) > 0:
             self.fix_fail_stop(current_route)
             self.validating_routes(current_route)
         return current_route
+        '''
 
     # calculate loading time for each route
     def validating_routes(self, current_route):
         travel_time_truck_1 = datetime.strptime(str(date.today()) + ' ' + '08:00 AM', '%Y-%m-%d %I:%M %p')
         travel_time_truck_2 = datetime.strptime(str(date.today()) + ' ' + '08:00 AM', '%Y-%m-%d %I:%M %p')
-        count = 1
-        for route in current_route.get_route_breakdown():
+        breakdown_list = current_route.get_route_breakdown()
+        truck_1_route_breakdown = breakdown_list[0]
+        truck_2_route_breakdown = breakdown_list[1]
+        T1_list=[]
+        T2_list=[]
+        for route in truck_1_route_breakdown:
+            for stop in route:
+                    if stop.address_index==0:
+                        T1_list.append(0)
+                    else:
+                        T1_list.append(stop.package_id)
+        for route in truck_2_route_breakdown:
+            for stop in route:
+                    if stop.address_index==0:
+                        T2_list.append(0)
+                    else:
+                        T2_list.append(stop.package_id)
+
+        self.check_route(truck_1_route_breakdown,False)
+        self.check_route(truck_2_route_breakdown,True)
+
+    def check_route(self, route_breakdown,is_truck_2):
+        start_time = datetime.strptime(str(date.today()) + ' ' + '08:00 AM', '%Y-%m-%d %I:%M %p')
+        for route in route_breakdown:
             available_package_list = set()
             # adding all package into set
             for stop in route:
                 if stop.address_index == 0:
                     continue
                 available_package_list.add(stop.package_id)
-            if count % 2 == 1:
-                start_time = travel_time_truck_1
-            else:
-                start_time = travel_time_truck_2
-            current_time = start_time
             loading_time = start_time
             previous_address_index = 0
-            for stop in route:
+            current_time = start_time
+            for i, stop in enumerate(route):
                 # not to loop up package if current stop is hub
                 if stop.address_index != 0:
                     current_package = self.package_hashtable.lookup(stop.package_id)
@@ -129,6 +152,9 @@ class RouteCalculator:
                     if stop.address_index != previous_address_index:
                         current_time = current_time + stop.travel_time
                 else:
+                    if i == 0:
+                        continue
+                    self.calculate_travel_time(stop,route[i-1])
                     current_time = current_time + stop.travel_time
                     continue
                 # check loading time for package:
@@ -143,17 +169,12 @@ class RouteCalculator:
                         self.add_failed_package(stop.package_id,
                                                 'failed delivery by bonding package')
                 # check truck 2 only packages
-                if current_package.id in self.truck2_package_list:
-                    if count % 2 == 1:
+                if not is_truck_2:
+                    if current_package.id in self.truck2_package_list:
                         self.add_failed_package(stop.package_id,
-                                                'failed delivery by truck 2')
-                previous_address_index = stop.address_index
-            if count % 2 == 1:
-                travel_time_truck_1 = current_time
-            else:
-                travel_time_truck_2 = current_time
-            count += 1
-
+                                                    'failed delivery by truck 2')
+                    previous_address_index = stop.address_index
+            start_time = current_time
     def add_failed_package(self, package_id, reason):
         if package_id not in self.failed_package_dictionary:
             self.failed_package_dictionary[package_id] = []
@@ -162,10 +183,12 @@ class RouteCalculator:
     def adding_hub_stop(self, current_route):
         current_stop = current_route.route[-1]
         next_stop = Stop(None, 0)
-        next_stop.travel_time = timedelta(
-            hours=self.get_distance_between(next_stop.address_index, current_stop.address_index) / 18)
         current_route.route.append(next_stop)
         current_route.last_hub_index.append(len(current_route.route))
+
+    def calculate_travel_time(self, current_stop, next_stop):
+        next_stop.travel_time = timedelta(
+            hours=self.get_distance_between(next_stop.address_index, current_stop.address_index) / 18)
 
     def get_shortest_next_stop(self, current_route, package_list):
         # check if there is 16 packages assigned to the route and adding hub stop
@@ -216,30 +239,28 @@ class RouteCalculator:
 
     def fix_fail_stop(self, current_route):
         available_package = set()
-        truck_1_route_list = []
-        truck_2_route_list = []
-        count = 1
-        for route in current_route.get_route_breakdown():
-            if count % 2 == 1:
-                truck_1_route_list.append(route)
-            else:
-                truck_2_route_list.append(route)
+        breakdown_list = current_route.get_route_breakdown()
+        truck_1_route_list = breakdown_list[0]
+        truck_2_route_list = breakdown_list[1]
 
         sorted_fail_package = self.get_sorted_fail_package()
         # removing wrong assigning packages from truck 1 route
         for package_id in sorted_fail_package['failed delivery by truck 2']:
             for route in truck_1_route_list:
-                for stop
-                if stop.package_id is None:
-                    continue
-                else:
-                    if stop.package_id == package_id
-                        route.remove(package_id)
-                        available_package.add(package_id)
-                    break
-        for route in truck_2_route_list:
-            for package_id in route
+                for stop in route:
+                    if stop.package_id is None:
+                        continue
+                    else:
+                        if stop.package_id == package_id:
+                            route.remove(package_id)
+                            available_package.add(package_id)
+                            break
 
+        """
+        for route in truck_2_route_list:
+            for stop in route:
+                available_package.add(stop.package_id)
+        """
 
     # group failed package by its fail reason
     def get_sorted_fail_package(self):
