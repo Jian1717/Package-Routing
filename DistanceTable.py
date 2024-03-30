@@ -32,13 +32,14 @@ class DistanceTable:
                             is_insert = True
                             break
                         index += 1
-                # adding the address to end of list if it's farthest
+                    # adding the address to end of list if it's farthest
                     if not is_insert:
                         min_distance_table[current_address].append((next_address, distance))
                 next_address += 1
             current_address += 1
         return min_distance_table
 
+    # get the distance between two address
     def get_distance_between(self, current_address_id, next_address_id):
 
         try:
@@ -47,3 +48,5 @@ class DistanceTable:
             value = self.distance_table[current_address_id][next_address_id]
 
         return float(value)
+
+

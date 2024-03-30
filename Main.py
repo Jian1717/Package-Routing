@@ -11,9 +11,8 @@ def main():
 
     package_hashtable = load_package_file()
     distance_table = load_distance_table()
-    route_calculator = RouteCalculator(distance_table, package_hashtable, [Truck(1, 'driver 1'), Truck(2, 'driver 2')])
-    task_list = route_calculator.calculate_routes()
-    print(task_list)
+    route_calculator = RouteCalculator(distance_table, package_hashtable, [Truck(1), Truck(2)])
+    route_calculator.calculate_routes()
     print('program ends')
 
 

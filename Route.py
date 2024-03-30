@@ -6,20 +6,27 @@ class Route:
     # break entire route assignment into individual route
     def get_route_breakdown(self):
         breakdown_list = []
-        truck_1_route_list = []
-        truck_2_route_list = []
-        count = 1
         previous_index = 1
         for hub_index in self.last_hub_index:
             if hub_index == 1:
                 continue
             else:
-                if count%2 ==1:
-                    truck_1_route_list.append(self.route[previous_index-1:hub_index])
-                else:
-                    truck_2_route_list.append(self.route[previous_index - 1:hub_index])
+                breakdown_list.append(self.route[previous_index - 1:hub_index])
                 previous_index = hub_index
-                count += 1
-        breakdown_list.append(truck_1_route_list)
-        breakdown_list.append(truck_2_route_list)
         return breakdown_list
+
+    def calculate_last_hub_index(self):
+        self.last_hub_index.clear()
+        for i, stop in enumerate(self.route):
+            if stop.address_index == 0:
+                self.last_hub_index.append(i + 1)
+
+    # for troubleshooting use only
+    def get_route_package_list(self):
+        package_list = []
+        for stop in self.route:
+            if stop.address_index == 0:
+                package_list.append(0)
+            else:
+                package_list.append(stop.package_id)
+        return package_list
