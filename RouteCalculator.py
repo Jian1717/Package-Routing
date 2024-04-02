@@ -11,7 +11,8 @@ class RouteCalculator:
         self.distance_dictionary = distance_table.get_address_dictionary()
         self.distance_table = distance_table.get_distance_table()
         self.min_distance_table = distance_table.get_min_distance_table()
-        self.best_route_dictionary = dict
+        self.updated_min_distance_table = dict()
+        self.best_route_dictionary = dict()
         self.package_hashtable = package_hashtable
         self.truck_list = truck_list
         self.truck2_package_list = set()
@@ -93,7 +94,6 @@ class RouteCalculator:
     # find a 15 package route for truck
     def find_routes(self, package_list, current_route):
         # find the shortest route for 40 package without check any conditions
-        package_list.difference_update(self.delay_package_list)
         rush_bonded_package = self.rush_package_list.intersection(self.bonded_package_list)
         available_package_for_truck_1 = set()
         available_package_for_truck_2 = self.delay_package_list
@@ -102,12 +102,41 @@ class RouteCalculator:
         # adding same address package into list
         self.add_same_address_package(available_package_for_truck_1, package_list)
         self.add_same_address_package(available_package_for_truck_2, package_list)
-        test = Route([Stop(None, 0)])
-        while len(available_package_for_truck_1) > 0:
-            self.get_shortest_next_stop(test, available_package_for_truck_1)
-        best_route_detail = self.get_best_route_between_two(0, 16)
-        print(best_route_detail)
-        is_insert = False
+        # find the shortest route between two point with multiple stop in consideration instead of direct travel
+        self.get_shortest_route_dictionary()
+        updated_min_distance_table = self.get_updated_min_distance_table()
+        # set default value
+        global best_distance_travel
+        best_distance_travel = 140
+        best_optimal_route=([],set(),set(),140)
+        address_needs_to_travel = set()
+        count = 1
+        while len(address_needs_to_travel) < 27:
+            address_needs_to_travel.add(count)
+            count += 1
+    # best route = (entire_route [list], stop_visited, package_assigned, total_distance)
+    def get_optmal_route(self, entire_route_detail, best_optimal_route, max_package_loaded, address_needs_to_travel):
+        if len(package_assigned) == 40:
+            return entire_route
+        # to set default vale
+        if len(entire_route) == 0:
+            current_stop = 0
+        else:
+            current_stop = entire_route[-1]
+        for address_detail in self.best_route_dictionary[current_stop]:
+            # skip self
+            if address_detail[0][0] == current_stop:
+                continue
+            # get next stop in best_route_dictionary
+            next_stop = address_detail[1][-1]
+            # check the next stop if it's hub
+            if next_stop == 0:
+                # reset space to 16
+                max_package_loaded = 16
+                total_distance += address_detail[1]
+
+
+        '''
         while len(package_list) > 0:
             if not is_insert and current_route.last_hub_index[-1] > 1:
                 package_list = package_list.union(self.delay_package_list)
@@ -155,7 +184,7 @@ class RouteCalculator:
             total_distance = self.truck_list[0].total_delivery_mileage + self.truck_list[1].total_delivery_mileage
 
             print('i am here')
-        '''''
+
         while len(self.failed_package_dictionary) > 0:
             self.fix_fail_stop(current_route)
             self.validating_routes(current_route)
@@ -315,21 +344,22 @@ class RouteCalculator:
                         package_list):
                     available_package_truck = available_package_truck.union(
                         self.address_package_dictionary[self.distance_dictionary[current_package.address]])
-        package_list.difference_update(available_package_truck)
+        return available_package_truck
 
     def add_bonded_package(self, available_package_truck, package_list):
         for package_id in available_package_truck:
             if package_id in self.bonded_package_list:
                 available_package_truck = available_package_truck.union(self.bonded_package_dictionary[package_id])
-            package_list.difference_update(available_package_truck)
+        return available_package_truck
 
     # get best route get from any point to hub
     def get_best_route_between_two(self, from_address_index, to_address_index):
+
         best_route_detail = (
             [from_address_index, to_address_index], self.get_distance_between(from_address_index, to_address_index))
         # create a dictionary to hold all the next address that needs to check
         address_needs_to_check = dict()
-        # adding any hub point that travel distance are less than direct hub return
+        # adding any hub point that travel distance are less than direct travel
         min_distance_detail = self.min_distance_table[from_address_index]
         for address_index, distance in min_distance_detail:
             # skip self
@@ -342,34 +372,87 @@ class RouteCalculator:
             # check if any other point has less mile travel than direct travel
             if distance < best_route_detail[1]:
                 total_distance = distance
-                route = [address_index, from_address_index]
+                route = [from_address_index, address_index]
                 address_needs_to_check[address_index] = (route, total_distance)
         for check_point in address_needs_to_check.values():
-            self.get_shortest_route(check_point[0],
-                                    check_point[1],
-                                    best_route_detail,
-                                    to_address_index)
+            best_route_detail = self.get_shortest_route(check_point[0], check_point[1], best_route_detail,
+                                                        to_address_index)
 
         return best_route_detail
 
     def get_shortest_route(self, current_route, total_distance, best_route_detail, to_address_index):
-        min_distance_detail = self.min_distance_table[current_route[0]]
+        min_distance_detail = self.min_distance_table[current_route[-1]]
         for address_index, distance in min_distance_detail:
             if address_index in current_route:
                 continue
             if distance + total_distance < best_route_detail[1]:
-                current_route.insert(0, address_index)
+                new_route = current_route.copy()
+                new_route.append(address_index)
                 if address_index == to_address_index:
                     if distance + total_distance == best_route_detail[1]:
-                        best_route_detail[0].extend(current_route)
+                        best_route_detail[0].extend(new_route)
+                        return best_route_detail
                     else:
-                        best_route_detail = (current_route, total_distance + distance)
-                    return
+                        best_route_detail = (new_route, total_distance + distance)
+                        return best_route_detail
                 else:
                     # to check if there is room for minimum distance return to to_address
-                    if distance + total_distance + self.min_distance_table[to_address_index][1][1] < best_route_detail[1]:
-                        self.get_shortest_route(current_route, distance + total_distance, best_route_detail,
-                                            to_address_index)
-                    current_route.pop(0)
+                    if distance + total_distance < best_route_detail[1]:
+                        best_route_detail = self.get_shortest_route(new_route, distance + total_distance,
+                                                                    best_route_detail, to_address_index)
             else:
-                continue
+                return best_route_detail
+
+    def get_shortest_route_dictionary(self):
+        best_route_dictionary = dict()
+        count = 0
+        while count < len(self.distance_dictionary):
+            for address_index in self.distance_dictionary.values():
+                if count not in self.best_route_dictionary:
+                    self.best_route_dictionary[count] = dict()
+                    self.best_route_dictionary[count][address_index] = self.get_best_route_between_two(count,
+                                                                                                       address_index)
+                else:
+                    self.best_route_dictionary[count][address_index] = self.get_best_route_between_two(count,
+                                                                                                       address_index)
+            count += 1
+
+    def get_updated_min_distance_table(self):
+        updated_min_distance_table = dict()
+        for key in self.best_route_dictionary.keys():
+            updated_min_distance_table[key] = []
+            count = 0
+            while count < len(self.best_route_dictionary):
+                if count == 0:
+                    updated_min_distance_table[key].append(self.best_route_dictionary[key][count])
+                else:
+                    is_insert = False
+                    index = 0
+                    # compare current term to entire list
+                    for item in updated_min_distance_table[key]:
+                        if float(item[1]) > float(self.best_route_dictionary[key][count][1]):
+                            updated_min_distance_table[key].insert(index, self.best_route_dictionary[key][count])
+                            is_insert = True
+                            break
+                        index += 1
+                    # adding the address to end of list if it's farthest
+                    if not is_insert:
+                        updated_min_distance_table[key].append(self.best_route_dictionary[key][count])
+                count += 1
+        return updated_min_distance_table
+
+    def get_point_must_visit(self):
+        best_route_detail_from_hub = self.best_route_dictionary[0]
+        address_index = 1
+        address_must_visit = set()
+        while len(self.best_route_dictionary) >= address_index:
+            address_must_visit.add(address_index)
+            address_index += 1
+        for value in best_route_detail_from_hub.values():
+            if len(value[0]) > 2:
+                route = value[0][1:-1]
+                for stop in route:
+                    if stop in address_must_visit:
+                        address_must_visit.remove(stop)
+
+        return address_must_visit
