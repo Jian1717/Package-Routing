@@ -30,7 +30,7 @@ class RouteCalculator:
         for special_request_package in special_notes_list:
             current_package = self.package_hashtable.lookup(special_request_package)
             note = current_package.get_notes()
-            # load package to truck 2
+            # add package to truck 2 only list
             if note == 'Can only be on truck 2':
                 self.truck2_package_list.add(current_package.get_id())
             # set available time and load_time to 9:05 am
@@ -46,13 +46,18 @@ class RouteCalculator:
                     datetime.strptime(str(date.today()) + ' ' + '10:20 AM', '%Y-%m-%d %I:%M %p'))
                 current_package.set_address('410 S STATE ST')
                 self.package_hashtable.insert(current_package.get_id(), current_package)
+            # adding bonded delivery packages to dictionary
             elif 'Must be delivered with' in note:
+                # clean data
                 note = note.replace(',', ' ')
                 string_list = note.split()
+                # check if there is an entry in dictionary
                 if current_package.get_id() not in self.bonded_package_dictionary:
                     self.bonded_package_dictionary[current_package.get_id()] = set()
+                # adding its bonded packages to value
                 self.bonded_package_dictionary[current_package.get_id()].add(string_list[4])
                 self.bonded_package_dictionary[current_package.get_id()].add(string_list[5])
+                # repeat the same process for its bonded packages.
                 for package_id in self.bonded_package_dictionary[current_package.get_id()]:
                     if package_id not in self.bonded_package_dictionary:
                         self.bonded_package_dictionary[package_id] = set()
@@ -95,11 +100,12 @@ class RouteCalculator:
     def find_routes(self, package_list, current_route):
         # find the shortest route between two point with multiple stop in consideration instead of direct travel
         self.get_shortest_route_dictionary()
-        # assign delay package to truck 2
+        # manually load the packages into trucks
+        # assign delay package to truck 2 (Truck 2 will departure at 9:05 am to compromise delay package)
         truck_2_package = self.delay_package_list
         # assign truck 2 only package to truck 2
         truck_2_package = truck_2_package.union(self.truck2_package_list)
-        # assign same address to truck base on exiting package assignment
+        # assign same address to truck base on current package assignment
         truck_2_package = self.add_same_address_package(truck_2_package)
         # assign rush package that are required to be delivery with other packages to truck 1
         truck_1_package = self.rush_package_list.intersection(self.bonded_package_list)
@@ -107,49 +113,56 @@ class RouteCalculator:
         for package_id in truck_1_package:
             if package_id in self.bonded_package_dictionary:
                 truck_1_package = truck_1_package.union(self.bonded_package_dictionary[package_id])
-        truck_1_package = truck_1_package.union(self.delay_package_list)
-        address_for_truck_1 = self.find_address_index_by_package_id(truck_1_package)
+        # find out left over rush package and assign them to truck 1
+        left_over_rush_package = self.rush_package_list.difference(truck_2_package)
+        truck_1_package = truck_1_package.union(left_over_rush_package)
+        # assign same address package to truck base on current package assignment
         truck_1_package = self.add_same_address_package(truck_1_package)
-        best_route_for_truck_1 = self.get_least_distance_travel_between_stops(address_for_truck_1, ([0], 0), ([0], 140))
-        '''
-        truck_1_package = self.add_same_address_package(truck_1_package)
-        package_list.difference_update(truck_1_package)
-        package_list.difference_update(truck_2_package)
-        left_over_rush_package = package_list.intersection(self.rush_package_list)
-        package_list.difference_update(left_over_rush_package)
+        # convert packages to address
         address_for_truck_1 = self.find_address_index_by_package_id(truck_1_package)
         address_for_truck_2 = self.find_address_index_by_package_id(truck_2_package)
-        best_test = self.get_least_distance_travel_between_stops(
-            {3, 15, 24, 20, 21, 6, 4, 17, 26, 22, 3, 10, 23, 13, 7}, ([0], 0), ([0], 140))
+        # find out best route for truck 1
         best_route_for_truck_1 = self.get_least_distance_travel_between_stops(address_for_truck_1, ([0], 0), ([0], 140))
+        # find out best route for truck 2
         best_route_for_truck_2 = self.get_least_distance_travel_between_stops(address_for_truck_2, ([0], 0), ([0], 140))
-        truck_1_package = self.assign_package(best_route_for_truck_1, package_list_2)
-        package_list_2.difference_update(truck_1_package)
-        truck_2_package = self.assign_package(best_route_for_truck_2, package_list_2)
-        package_list_2.difference_update(truck_2_package)
+        # take out the packages assigned for truck 1
+        package_list.difference_update(truck_1_package)
+        # take out the packages assigned for truck 2
+        package_list.difference_update(truck_2_package)
+        # find out left_over package
+        package_list.difference_update(left_over_rush_package)
+        # find out best route for left_over package
         best_route_for_left_over_package = self.get_least_distance_travel_between_stops(
-            self.find_address_index_by_package_id(package_list_2), ([0], 0), ([0], 140))
-        truck_left_over_package = self.assign_package(best_route_for_left_over_package, package_list_2)
-        '''
-        # set default value
-        global best_distance_travel
-        best_distance_travel = 140
-        best_optimal_route = ([], set(), set(), 140)
-        address_needs_to_travel = set()
-        count = 1
-        while len(address_needs_to_travel) < 27:
-            address_needs_to_travel.add(count)
-            count += 1
+            self.find_address_index_by_package_id(package_list), ([0], 0), ([0], 140))
+        # covert package assignments into Route object
+        route_1 = self.assign_route(best_route_for_truck_1,truck_1_package)
+        route_2 = self.assign_route(best_route_for_truck_2,truck_2_package)
+        route_3 = self.assign_route(best_route_for_left_over_package,package_list)
 
-    def assign_package(self, address_list, package_list):
-        package_assigned = set()
-        for address_index in address_list[0]:
+
+
+    # assign packages to current routes
+    def assign_route(self, route, package_list):
+        current_route = []
+        for address_index in route[0]:
+            # check if it's a hub stop
             if address_index == 0:
+                current_route.append(Stop(None,0))
                 continue
+            is_insert = False
+            # to add all same address packages
             for package_id in self.address_package_dictionary[address_index]:
                 if package_id in package_list:
-                    package_assigned.add(package_id)
-        return package_assigned
+                    next_stop=Stop(package_id,address_index)
+                    self.calculate_travel_time(current_route[-1],next_stop)
+                    current_route.append(next_stop)
+                    is_insert = True
+            # add pass by stop if there is no package assgined for this stop
+            if not is_insert:
+                next_stop = Stop(None, address_index)
+                self.calculate_travel_time(current_route[-1], next_stop)
+                current_route.append(next_stop)
+        return Route(current_route)
 
     def get_least_distance_travel_between_stops(self, address_needs_visit, current_route_detail, best_route_detail):
         start_point = current_route_detail[0][-1]
@@ -195,10 +208,12 @@ class RouteCalculator:
         for i, stop in enumerate(truck.route.route):
             # not to loop up package if current stop is hub
             if stop.address_index != 0:
-                current_package = self.package_hashtable.lookup(stop.package_id)
                 # don't update current time if package is in the same address
                 if stop.address_index != previous_address_index:
                     current_time = current_time + stop.travel_time
+                if stop.package_id is not None:
+                    current_package = self.package_hashtable.lookup(stop.package_id)
+
             else:
                 if i == 0:
                     continue
@@ -223,7 +238,13 @@ class RouteCalculator:
                                             'failed delivery by truck 2')
                 previous_address_index = stop.address_index
             start_time = current_time
-
+            # check package 9 delivery specification
+            if current_package.id == 9:
+                available_time = start_time = datetime.strptime(str(date.today()) + ' ' + '10:20 AM', '%Y-%m-%d %I:%M %p')
+                if current_time < available_time:
+                    self.add_failed_package(stop.package_id,
+                                            'failed delivery by deliver package 9 before 10:20 am')
+    # adding error message to failed package dictionary
     def add_failed_package(self, package_id, reason):
         if package_id not in self.failed_package_dictionary:
             self.failed_package_dictionary[package_id] = []
