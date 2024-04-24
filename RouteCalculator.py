@@ -73,7 +73,6 @@ class RouteCalculator:
 
     def calculate_routes(self):
         anytime_package_list = set()
-        start_time = datetime.strptime(str(date.today()) + ' ' + '08:00 AM', '%Y-%m-%d %I:%M %p')
         end_of_day = datetime.strptime(str(date.today()) + ' ' + '11:59 PM', '%Y-%m-%d %I:%M %p')
         self.check_special_notes()
         # load packages in package hashtable into a list
@@ -94,9 +93,9 @@ class RouteCalculator:
                     self.address_package_dictionary.get(self.distance_dictionary[package[1].address]).add(
                         package[1].get_id())
         # finding all delivery routes
-        self.find_routes(anytime_package_list, Route([Stop(None, 0)]))
+        return self.find_routes(anytime_package_list, Route([Stop(None, 0)]))
 
-    # find a 15 package route for truck
+    # calculate and validate route assignment for 40 packages
     def find_routes(self, package_list, current_route):
         # find the shortest route between two point with multiple stop in consideration instead of direct travel
         self.get_shortest_route_dictionary()
@@ -135,11 +134,55 @@ class RouteCalculator:
         best_route_for_left_over_package = self.get_least_distance_travel_between_stops(
             self.find_address_index_by_package_id(package_list), ([0], 0), ([0], 140))
         # covert package assignments into Route object
-        route_1 = self.assign_route(best_route_for_truck_1,truck_1_package)
-        route_2 = self.assign_route(best_route_for_truck_2,truck_2_package)
-        route_3 = self.assign_route(best_route_for_left_over_package,package_list)
+        route_1 = self.assign_route(best_route_for_truck_1, truck_1_package)
+        route_2 = self.assign_route(best_route_for_truck_2, truck_2_package)
+        route_3 = self.assign_route(best_route_for_left_over_package, package_list)
+        # to update distance back to the hub
+        self.calculate_travel_time(route_1.route[-2], route_1.route[-1])
+        self.calculate_travel_time(route_2.route[-2], route_2.route[-1])
+        self.calculate_travel_time(route_3.route[-2], route_3.route[-1])
+        # assign route to truck 1
+        self.truck_list[0].route = route_1
+        self.truck_list[0].package_list = truck_1_package
+        # set up departure time for truck 1
+        self.truck_list[0].departure_time = datetime.strptime(str(date.today()) + ' ' + '08:00 AM', '%Y-%m-%d %I:%M %p')
+        self.truck_list[0].calculate_total_distance_travel()
+        # assign route to truck 2
+        self.truck_list[1].route = route_2
+        self.truck_list[1].package_list = truck_2_package
+        # set up departure time for truck 1
+        self.truck_list[1].departure_time = datetime.strptime(str(date.today()) + ' ' + '09:05 AM', '%Y-%m-%d %I:%M %p')
+        self.truck_list[1].calculate_total_distance_travel()
+        # assign route to truck 3
+        self.truck_list[2].route = route_3
+        self.truck_list[2].package_list = package_list
+        # set up departure time for truck 3.  Driver from truck 1 will deliver truck 3.
+        self.truck_list[2].departure_time = timedelta(hours=self.truck_list[0].total_delivery_mileage / 18) + \
+                                            self.truck_list[0].departure_time
+        self.truck_list[2].calculate_total_distance_travel()
+        # check route assignments
+        delivered_package = set()
+        is_validated = True
+        finish_time = datetime.strptime(str(date.today()) + ' ' + '08:00 AM', '%Y-%m-%d %I:%M %p')
+        for truck in self.truck_list:
+            self.check_route(truck)
+            delivered_package = delivered_package.union(truck.package_list)
+            route_completion_time = timedelta(hours=truck.total_delivery_mileage / 18) + \
+                                    truck.departure_time
+            if finish_time < route_completion_time:
+                finish_time = route_completion_time
 
+        # check if all 40 packages are delivered
+        if len(delivered_package) != 40:
+            is_validated = False
+        # check finish_time is less than 5:00 pm
+        if finish_time > datetime.strptime(str(date.today()) + ' ' + '05:00 PM', '%Y-%m-%d %I:%M %p'):
+            is_validated = False
+        # check if all packages are delivered according to its delivery speciations
+        if len(self.failed_package_dictionary) != 0:
+            is_validated = False
 
+        return is_validated
 
     # assign packages to current routes
     def assign_route(self, route, package_list):
@@ -147,14 +190,14 @@ class RouteCalculator:
         for address_index in route[0]:
             # check if it's a hub stop
             if address_index == 0:
-                current_route.append(Stop(None,0))
+                current_route.append(Stop(None, 0))
                 continue
             is_insert = False
             # to add all same address packages
             for package_id in self.address_package_dictionary[address_index]:
                 if package_id in package_list:
-                    next_stop=Stop(package_id,address_index)
-                    self.calculate_travel_time(current_route[-1],next_stop)
+                    next_stop = Stop(package_id, address_index)
+                    self.calculate_travel_time(current_route[-1], next_stop)
                     current_route.append(next_stop)
                     is_insert = True
             # add pass by stop if there is no package assgined for this stop
@@ -198,9 +241,8 @@ class RouteCalculator:
         return best_route_detail
 
     # check route assignment for the truck
-    def check_route(self, truck, travel_time):
-        start_time = travel_time
-        truck.calculate_package_list()
+    def check_route(self, truck):
+        start_time = truck.departure_time
         available_package_list = truck.package_list
         loading_time = start_time
         previous_address_index = 0
@@ -217,7 +259,6 @@ class RouteCalculator:
             else:
                 if i == 0:
                     continue
-                self.calculate_travel_time(stop, truck.route.route[i - 1])
                 current_time = current_time + stop.travel_time
                 continue
             # check loading time for package:
@@ -240,10 +281,12 @@ class RouteCalculator:
             start_time = current_time
             # check package 9 delivery specification
             if current_package.id == 9:
-                available_time = start_time = datetime.strptime(str(date.today()) + ' ' + '10:20 AM', '%Y-%m-%d %I:%M %p')
+                available_time = start_time = datetime.strptime(str(date.today()) + ' ' + '10:20 AM',
+                                                                '%Y-%m-%d %I:%M %p')
                 if current_time < available_time:
                     self.add_failed_package(stop.package_id,
                                             'failed delivery by deliver package 9 before 10:20 am')
+
     # adding error message to failed package dictionary
     def add_failed_package(self, package_id, reason):
         if package_id not in self.failed_package_dictionary:
@@ -332,9 +375,11 @@ class RouteCalculator:
             for address_index in self.distance_dictionary.values():
                 if count not in self.best_route_dictionary:
                     self.best_route_dictionary[count] = dict()
-                    self.best_route_dictionary[count][address_index] = self.get_best_route_between_two(count, address_index)
+                    self.best_route_dictionary[count][address_index] = self.get_best_route_between_two(count,
+                                                                                                       address_index)
                 else:
-                    self.best_route_dictionary[count][address_index] = self.get_best_route_between_two(count, address_index)
+                    self.best_route_dictionary[count][address_index] = self.get_best_route_between_two(count,
+                                                                                                       address_index)
             count += 1
 
     def get_updated_min_distance_table(self):

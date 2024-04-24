@@ -70,7 +70,7 @@ def load_package_file():
         for row in reader:
             package_hashing_table.insert(row[0],
                                          Package(row[0], validate_address(row[1]), validate_time(row[5]), row[2],
-                                                 row[4], row[6], row[7], 'in hub'))
+                                                 row[4], row[6], row[7], 'in hub',row[3]))
             # adding package id to special_notes_list if it contain special notes
             if row[7] is not '':
                 special_notes_list.append(row[0])
