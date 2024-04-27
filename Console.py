@@ -116,10 +116,19 @@ class Console:
         print('')
         print('-----------------'+title+'-----------------')
         count = 1
-        while count <= len(self.work_log):
-            for status_detail in self.work_log[str(count)]:
-                if start_time <= status_detail[0] <= end_time:
-                    if 'AtHub' not in status_detail[1]:
+        for truck in self.truck_list:
+            print('Truck_'+str(truck.id)+'_Package_status: ')
+            for package_id in truck.package_list:
+                is_print=False
+                if start_time <= truck.departure_time <= end_time:
+                    print(self.work_log[str(package_id)][0][1])
+                for status_detail in self.work_log[str(package_id)]:
+                    if start_time <= status_detail[0] <= end_time:
                         print(status_detail[1])
-            count += 1
+                        is_print=True
+                if not is_print:
+                    if end_time < truck.departure_time:
+                        print(self.work_log[str(package_id)][0][1])
+                    else:
+                        print(self.work_log[str(package_id)][-1][1])
         print('')

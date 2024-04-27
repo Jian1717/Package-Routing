@@ -44,7 +44,7 @@ class Truck:
             self.work_log[package_id].append((
                 datetime.strptime(str(date.today()) + ' ' + '12:00 AM', '%Y-%m-%d %I:%M %p'), package_detail))
             # update status when packages are loaded to truck
-            status = 'InRoute by Truck-' + str(self.id) + ', ' + self.departure_time.strftime('%I:%M %p')
+            status = 'InRoute by Truck-' + str(self.id) + ' at ' + self.departure_time.strftime('%I:%M %p')
             package_detail = current_package.package_detail(status)
             self.work_log[package_id].append((load_time, package_detail))
             # update the address for package 9 when it's 10:20 am
@@ -61,6 +61,6 @@ class Truck:
             current_time = current_time + stop.travel_time
             if stop.package_id is not None:
                 current_package = package_hashtable.lookup(stop.package_id)
-                status = 'delivered by Truck-' + str(self.id) + ', ' + current_time.strftime('%I:%M %p')
+                status = 'Delivered by Truck-' + str(self.id) + ' at ' + current_time.strftime('%I:%M %p')
                 package_detail = current_package.package_detail(status)
                 self.work_log[stop.package_id].append((current_time, package_detail))
