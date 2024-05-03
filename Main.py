@@ -31,7 +31,7 @@ def main():
         console.print_greeting_message()
         menu_option = ''
         # core function for GUI
-        while menu_option != '4':
+        while menu_option != '5':
             console.print_main_menu()
             menu_option = input('please choose a menu option:')
             # print out all status for all packages
@@ -55,6 +55,15 @@ def main():
                     target_time = input('please enter a time in following format HH:MM AM/PM: ')
                     target_time.upper()
                     console.time_frame_search(target_time)
+                except:
+                    print('invalid Data Entry, please try again')
+            elif menu_option == '4':
+                try:
+                    target_start_time = input('please enter start time in following format HH:MM AM/PM: ')
+                    target_start_time.upper()
+                    target_end_time = input('please enter end time in following format HH:MM AM/PM: ')
+                    target_end_time.upper()
+                    console.time_frame_loaded_packages_check(target_start_time, target_end_time, 'Status Check Between '+target_start_time+' and '+target_end_time)
                 except:
                     print('invalid Data Entry, please try again')
             # run the phrase check won't have display menu

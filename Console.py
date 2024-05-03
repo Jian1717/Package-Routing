@@ -16,10 +16,11 @@ class Console:
     # display main menu
     def print_main_menu(self):
         print('****************************************')
-        print('1. Print All Package Status and Total Mileage')
-        print('2. Get a Single Package Status with a Time ')
-        print('3. Get All Package Status with a Time ')
-        print('4. Exit the Program')
+        print('1. Print All Package Status And Total Mileage')
+        print('2. Get A Single Package Status With A Time ')
+        print('3. Get All Package Status With A Time ')
+        print('4. Status Check With A Time Frame')
+        print('5. Exit the Program')
         print('****************************************')
         print('')
 
@@ -132,3 +133,4 @@ class Console:
                     else:
                         print(self.work_log[str(package_id)][-1][1])
         print('')
+
